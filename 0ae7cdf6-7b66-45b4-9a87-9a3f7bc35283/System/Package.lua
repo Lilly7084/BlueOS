@@ -1,7 +1,7 @@
 local bootFS = component.proxy(computer.getBootAddress())
 
 local package = {
-    paths = { "/Libraries/" },
+    paths = { "/Libraries/", "/System/Libraries/" },
     loaded = {}, -- Package returns OR TRUE for everything that's loaded
     loading = {}, -- Note packages being loaded to catch circular dependencies
     exists = bootFS.exists

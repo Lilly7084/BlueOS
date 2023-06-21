@@ -39,7 +39,7 @@ local runInput = function (command)
     if i then
         command = command:sub(1, i - 1)
     end
-    local path = filesystem.concat("/Programs/", command .. ".lua")
+    local path = filesystem.concat("/System/Applications/", command .. ".lua")
     if not filesystem.exists(path) then
         print("*** Program \"" .. command .. "\" not found!")
         return
