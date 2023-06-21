@@ -66,17 +66,18 @@ local preloadLibraries = {
     "Event",
     "Component",
     "Filesystem",
-    "Keyboard"
+    "Keyboard",
+    "Framebuf"
 }
 
 -- Prepare screen for UI require
 
 -- Main box
 local boxWidth, boxHeight = 40, 8
-local x = math.floor(width / 2 - boxWidth / 2)
-local y = math.floor(height / 2 - boxHeight / 2)
+local boxX = math.floor(width / 2 - boxWidth / 2)
+local boxY = math.floor(height / 2 - boxHeight / 2)
 invoke(gpu, "setBackground", 0xE1E1E1)
-invoke(gpu, "fill", x, y, boxWidth, boxHeight, " ")
+invoke(gpu, "fill", boxX, boxY, boxWidth, boxHeight, " ")
 
 local centrize = function (x)
     return math.floor(width / 2 - x / 2)
@@ -85,7 +86,7 @@ end
 -- Title
 local boxTitle = _OSVERSION
 invoke(gpu, "setForeground", 0x2D2D2D)
-invoke(gpu, "set", centrize(#boxTitle), y + 1, boxTitle)
+invoke(gpu, "set", centrize(#boxTitle), boxY + 1, boxTitle)
 
 local titleCase = function (str)
     return str:sub(1, 1):upper() .. str:sub(2)
@@ -98,18 +99,19 @@ local uiRequire = function (name)
     local text = "Loading library: " .. titleCase(name)
     local x = centrize(#text)
     invoke(gpu, "setForeground", 0x2D2D2D)
-    invoke(gpu, "set", x, y + boxHeight - 3, text)
+    invoke(gpu, "fill", boxX, boxY + boxHeight - 3, boxWidth, 1, " ")
+    invoke(gpu, "set", x, boxY + boxHeight - 3, text)
 
     -- Progress bar (empty)
     local barWidth = 32
     local x = centrize(barWidth)
     invoke(gpu, "setForeground", 0xC3C3C3)
-    invoke(gpu, "set", x, y + boxHeight - 2, string.rep("─", barWidth))
+    invoke(gpu, "set", x, boxY + boxHeight - 2, string.rep("─", barWidth))
 
     -- Progress bar (filled)
     local part = math.ceil(barWidth * preloadCount / #preloadLibraries)
     invoke(gpu, "setForeground", 0x00C0FF)
-    invoke(gpu, "set", x, y + boxHeight - 2, string.rep("─", part))
+    invoke(gpu, "set", x, boxY + boxHeight - 2, string.rep("─", part))
 
     preloadCount = preloadCount + 1
     return require(name)
