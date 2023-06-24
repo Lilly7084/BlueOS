@@ -1,8 +1,7 @@
 local computer = require("Computer")
 local filesystem = require("Filesystem")
 
-print("Operating system: " .. _OSVERSION)
-print("Machine runtime: " .. _VERSION)
+print(_OSVERSION .. ", " .. _VERSION)
 print("Uptime: " .. computer.uptime() .. "s")
 
 local batterySize = computer.maxEnergy()

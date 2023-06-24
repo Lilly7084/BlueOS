@@ -59,101 +59,7 @@ local drivers = {}
 ]]
 
 --------------------------------------------------------------------------------
--- Common driver code
-
-local fbufSize = function (self)
-    return self.width, self.height
-end
-
---------------------------------------------------------------------------------
--- Screen driver
--- TODO: No type checking
-
-drivers.screen = {}
-
-drivers.screen.new = function (width, height)
-    local proxy = component.getPrimary("gpu")
-    local screen = component.getPrimary("screen")
-    proxy.bind(screen.address)
-
-    local maxWidth, maxHeight = proxy.maxResolution()
-    width = math.min(width, maxWidth)
-    height = math.min(height, maxHeight)
-    proxy.setResolution(width, height)
-
-    proxy.setBackground(0xFF00FF)
-    proxy.fill(1, 1, width, height, " ")
-
-    return {
-        width = width,
-        height = height,
-        buffer = nil,
-        proxy = proxy,
-
-        destroy = drivers.screen.destroy,
-        size = fbufSize,
-        resize = drivers.screen.resize,
-        clear = drivers.screen.clear,
-        set = drivers.screen.set,
-        get = drivers.screen.get,
-        fill = drivers.screen.fill,
-        clone = drivers.screen.clone,
-        crop = drivers.screen.crop,
-        blit = drivers.screen.blit
-    }
-end
-
-drivers.screen.destroy = function (self)
-end
-
-drivers.screen.resize = function (self, width, height, clearColor)
-    local oldWidth, oldHeight = self.proxy.getResolution()
-    local maxWidth, maxHeight = self.proxy.maxResolution()
-    self.width = math.min(width, maxWidth)
-    self.height = math.min(height, maxHeight)
-    self.proxy.setResolution(width, height)
-    self.proxy.setBackground(clearColor)
-    self.proxy.fill(oldWidth + 1, 1, self.width - oldWidth, self.height, " ")
-    self.proxy.fill(1, oldHeight + 1, self.width, self.height - oldHeight, " ")
-    return oldWidth, oldHeight
-end
-
-drivers.screen.clear = function (self, clearColor)
-    self.proxy.setBackground(clearColor)
-    self.proxy.fill(1, 1, self.width, self.height, " ")
-end
-
-drivers.screen.set = function (self, x, y, text, fgColor, bgColor)
-    self.proxy.setForeground(fgColor)
-    self.proxy.setBackground(bgColor)
-    -- TODO: Word wrap in screen driver set()?
-    self.proxy.set(x, y, text)
-end
-
-drivers.screen.get = function (self, x, y)
-    return self.proxy.get(x, y) -- char, fg, bg
-end
-
-drivers.screen.fill = function (self, x, y, width, height, char, fgColor, bgColor)
-    self.proxy.setForeground(fgColor)
-    self.proxy.setBackground(bgColor)
-    -- self.proxy.fill(x, y, width, height, char:sub(1, 1))
-    self.proxy.fill(x, y, width, height, char)
-end
-
-drivers.screen.clone = function (self, srcX, srcY, width, height, dstX, dstY)
-    self.proxy.copy(srcX, srcY, width, height, dstX - srcX, dstY - srcY)
-end
-
-drivers.screen.crop = function ()
-    error("Screen frame buffer can not be cropped!")
-end
-
-drivers.screen.blit = function ()
-    error("Blit functionality is not ready yet!")
-end
-
---------------------------------------------------------------------------------
+-- Common code
 
 framebuf.hasDriver = function (name)
     checkArg(1, name, "string")
@@ -184,10 +90,73 @@ framebuf.new = function (width, height, driverName)
 end
 
 --------------------------------------------------------------------------------
--- Initialization
+-- Screen buffer
 
-local width, height = component.gpu.maxResolution()
-framebuf.screen = framebuf.new(width, height, "screen")
+local proxy = component.getPrimary("gpu")
+local width, height = proxy.maxResolution()
+framebuf.screen = {
+    width = width,
+    height = height,
+    buffer = nil,
+    proxy = proxy
+}
+
+framebuf.screen.destroy = function (self)
+    error("Screen buffer cannot be destroyed!")
+end
+
+framebuf.screen.size = function (self)
+    return self.width, self.height
+end
+
+framebuf.screen.resize = function (self, width, height, clearColor)
+    local oldWidth, oldHeight = self.proxy.getResolution()
+    local maxWidth, maxHeight = self.proxy.maxResolution()
+    self.width = math.min(width, maxWidth)
+    self.height = math.min(height, maxHeight)
+    self.proxy.setResolution(width, height)
+    self.proxy.setBackground(clearColor)
+    self.proxy.fill(oldWidth + 1, 1, self.width - oldWidth, self.height, " ")
+    self.proxy.fill(1, oldHeight + 1, self.width, self.height - oldHeight, " ")
+    return oldWidth, oldHeight
+end
+
+framebuf.screen.clear = function (self, clearColor)
+    self.proxy.setBackground(clearColor)
+    self.proxy.fill(1, 1, self.width, self.height, " ")
+end
+
+framebuf.screen.set = function (self, x, y, text, fgColor, bgColor)
+    self.proxy.setForeground(fgColor)
+    self.proxy.setBackground(bgColor)
+    -- TODO: Word wrap in screen driver set()?
+    self.proxy.set(x, y, text)
+end
+
+framebuf.screen.get = function (self, x, y)
+    return self.proxy.get(x, y) -- char, fg, bg
+end
+
+framebuf.screen.fill = function (self, x, y, width, height, char, fgColor, bgColor)
+    self.proxy.setForeground(fgColor)
+    self.proxy.setBackground(bgColor)
+    -- self.proxy.fill(x, y, width, height, char:sub(1, 1))
+    self.proxy.fill(x, y, width, height, char)
+end
+
+framebuf.screen.clone = function (self, srcX, srcY, width, height, dstX, dstY)
+    self.proxy.copy(srcX, srcY, width, height, dstX - srcX, dstY - srcY)
+end
+
+framebuf.screen.crop = function ()
+    error("Screen buffer can not be cropped!")
+end
+
+framebuf.screen.blit = function ()
+    error("Blit functionality is not ready yet!")
+end
+
+framebuf.screen:clear(0x000000)
 
 --------------------------------------------------------------------------------
 

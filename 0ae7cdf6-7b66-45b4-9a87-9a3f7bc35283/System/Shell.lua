@@ -3,32 +3,32 @@ local filesystem = require("Filesystem")
 local framebuf = require("Framebuf")
 local keyboard = require("Keyboard")
 
-local screen = framebuf.screen
-screen:clear(0x000000)
-local width, height = screen:size()
+framebuf.screen:clear(0x000000)
+local width, height = framebuf.screen:size()
 local OUTPUT_BOX_HEIGHT = height - 3
 local INPUT_BOX_X = 1
 local INPUT_BOX_Y = height - 2
 local INPUT_BOX_HEIGHT = 3
 
 -- Make the input box
-screen:set(1, INPUT_BOX_Y, "┌", 0xFFFFFF, 0x000000)
-screen:set(width, INPUT_BOX_Y, "┐", 0xFFFFFF, 0x000000)
-screen:set(1, INPUT_BOX_Y + 2, "└", 0xFFFFFF, 0x000000)
-screen:set(width, INPUT_BOX_Y + 2, "┘", 0xFFFFFF, 0x000000)
-screen:fill(2, INPUT_BOX_Y, width - 2, INPUT_BOX_HEIGHT, "─", 0xFFFFFF, 0x000000)
-screen:fill(1, INPUT_BOX_Y + 1, width, 1, "│", 0xFFFFFF, 0x000000)
-screen:fill(2, INPUT_BOX_Y + 1, width - 2, 1, " ", 0xFFFFFF, 0x000000)
+framebuf.screen:set(1, INPUT_BOX_Y, "┌", 0xFFFFFF, 0x000000)
+framebuf.screen:set(width, INPUT_BOX_Y, "┐", 0xFFFFFF, 0x000000)
+framebuf.screen:set(1, INPUT_BOX_Y + 2, "└", 0xFFFFFF, 0x000000)
+framebuf.screen:set(width, INPUT_BOX_Y + 2, "┘", 0xFFFFFF, 0x000000)
+framebuf.screen:fill(2, INPUT_BOX_Y, width - 2, INPUT_BOX_HEIGHT, "─", 0xFFFFFF, 0x000000)
+framebuf.screen:fill(1, INPUT_BOX_Y + 1, width, 1, "│", 0xFFFFFF, 0x000000)
+framebuf.screen:fill(2, INPUT_BOX_Y + 1, width - 2, 1, " ", 0xFFFFFF, 0x000000)
 
 print = function (str)
     str = tostring(str)
-    screen:clone(1, 2, width, OUTPUT_BOX_HEIGHT - 1, 1, 1)
-    screen:fill(1, OUTPUT_BOX_HEIGHT, width, 1, " ", 0xFFFFFF, 0x000000)
-    screen:set(1, OUTPUT_BOX_HEIGHT, str, 0xFFFFFF, 0x000000)
+    framebuf.screen:clone(1, 2, width, OUTPUT_BOX_HEIGHT - 1, 1, 1)
+    framebuf.screen:fill(1, OUTPUT_BOX_HEIGHT, width, 1, " ", 0xFFFFFF, 0x000000)
+    framebuf.screen:set(1, OUTPUT_BOX_HEIGHT, str, 0xFFFFFF, 0x000000)
 end
 
 local runInput = function (command)
     if command:len() == 0 then return end
+    print("")
     print("> " .. command)
     local i = string.find(command, " ")
     if i then
@@ -54,8 +54,8 @@ local updateInput = function (_, _, char, code, playerName)
         inputBuffer = inputBuffer .. string.char(char)
     end
 
-    screen:fill(INPUT_BOX_X + 2, INPUT_BOX_Y + 1, width - 4, 1, " ", 0xFFFFFF, 0x000000)
-    screen:set(INPUT_BOX_X + 2, INPUT_BOX_Y + 1, inputBuffer .. "█", 0xFFFFFF, 0x000000)
+    framebuf.screen:fill(INPUT_BOX_X + 2, INPUT_BOX_Y + 1, width - 4, 1, " ", 0xFFFFFF, 0x000000)
+    framebuf.screen:set(INPUT_BOX_X + 2, INPUT_BOX_Y + 1, inputBuffer .. "█", 0xFFFFFF, 0x000000)
 end
 
 updateInput(nil, nil, 0, 0, nil)
