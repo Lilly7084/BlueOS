@@ -199,7 +199,8 @@ local function addDriver(path)
 end
 
 addDriver("Framebuf/CPU")
-addDriver("Framebuf/VRAM")
+-- OOPS: Forgot to remove this attempt to register a non-existent driver
+-- addDriver("Framebuf/VRAM")
 
 --------------------------------------------------------------------------------
 

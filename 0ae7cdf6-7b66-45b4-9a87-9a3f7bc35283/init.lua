@@ -72,4 +72,4 @@ end
 
 xpcall(loadfile(shellPath), panic)
 
-panic("Out of instructions!")
+panic("Machine halted!")

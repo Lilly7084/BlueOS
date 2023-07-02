@@ -16,15 +16,13 @@ if gpu then
     invoke(gpu, "fill", 1, 1, width, height, " ")
 end
 
-local cursor = 1
+local cursor = 2
 local putline = function (line)
     -- Scroll the screen if necessary
-    if cursor > height then
-        cursor = cursor - 1
-        invoke(gpu, "copy", 1, 2, width, height - 1, 0, -1)
-        invoke(gpu, "fill", 1, cursor, width, 1, " ")
+    if cursor >= height then
+        return
     end
-    invoke(gpu, "set", 1, cursor, tostring(line))
+    invoke(gpu, "set", 3, cursor, tostring(line))
     cursor = cursor + 1
 end
 
@@ -33,8 +31,8 @@ local println = function (msg)
     if gpu then
         for text in string.gmatch(tostring(msg), "[^\r\n]+") do
             while #text > 0 do
-                putline(string.sub(text, 1, width))
-                text = string.sub(text, width + 1)
+                putline(string.sub(text, 1, width - 2))
+                text = string.sub(text, width - 1)
             end
         end
     end
@@ -48,8 +46,18 @@ panic = function (...)
     for _, v in ipairs(args) do
         message = message .. " " .. tostring(v)
     end
-    invoke(gpu, "setForeground", 0xFF0000)
-    invoke(gpu, "setBackground", 0x000000)
+    if #args == 0 then
+        message = message .. " <No information provided>"
+    end
+    -- Make background
+    invoke(gpu, "setForeground", 0x000000)
+    invoke(gpu, "setBackground", 0x0000FF)
+    invoke(gpu, "fill", 1, 1, width, height, "█")
+    invoke(gpu, "fill", 2, 1, width - 2, 1, "▀")
+    invoke(gpu, "fill", 2, height, width - 2, 1, "▄")
+    invoke(gpu, "fill", 2, 2, width - 2, height - 2, " ")
+    -- Make message
+    invoke(gpu, "setForeground", 0xFFFFFF)
     println(message)
     println(debug.traceback())
     _panic()
@@ -136,4 +144,5 @@ _G.os = nil
 package.exists = lib.Filesystem.exists
 
 -- Shell file path
-return "/System/Shell_framebufTest.lua"
+return "/System/Shell.lua"
+-- return "/System/Shell_framebufTest.lua"
