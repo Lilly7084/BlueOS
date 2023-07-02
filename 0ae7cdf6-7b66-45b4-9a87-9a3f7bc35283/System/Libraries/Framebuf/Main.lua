@@ -79,6 +79,10 @@ framebuf.getAvailableDrivers = function ()
     end
 end
 
+local fbufSize = function (self)
+    return self.width, self.height
+end
+
 framebuf.new = function (width, height, driverName)
     checkArg(1, width, "number")
     checkArg(2, height, "number")
@@ -91,13 +95,10 @@ framebuf.new = function (width, height, driverName)
     for key, value in pairs(drivers[driverName]) do
         fbuf[key] = value
     end
+    fbuf.size = fbufSize
     -- Call constructor
     fbuf:init(width, height)
     return fbuf
-end
-
-local fbufSize = function (self)
-    return self.width, self.height
 end
 
 --------------------------------------------------------------------------------
@@ -187,122 +188,18 @@ end
 framebuf.screen:clear(0x000000)
 
 --------------------------------------------------------------------------------
--- CPU framebuffer driver
+-- Register drivers
 
-drivers.cpu = { name = "cpu" }
-
-drivers.cpu.init = function (self, width, height)
-    checkArg(1, width, "number")
-    checkArg(2, height, "number")
-    local DEFAULT_FG = 0xFFFFFF
-    local DEFAULT_BG = 0x000000
-    self.width = width
-    self.height = height
-    self.proxy = nil
-    self.buffer = { chr = {}, fg = {}, bg = {} }
-    for y = 1, height do
-        local chr, fg, bg = {}, {}, {}
-        for x = 1, width do
-            table.insert(chr, " ")
-            table.insert(fg, DEFAULT_FG)
-            table.insert(bg, DEFAULT_BG)
-        end
-        table.insert(self.buffer.chr, chr)
-        table.insert(self.buffer.fg, fg)
-        table.insert(self.buffer.bg, bg)
+local function addDriver(path)
+    local driver = require(path)
+    if not driver.valid then
+        return
     end
+    drivers[driver.name] = driver
 end
 
-drivers.cpu.destroy = function (self)
-    -- There's no hardware that needs to be freed here
-end
-
-drivers.cpu.size = fbufSize
-
-drivers.cpu.resize = function (self)
-    error("Resizing CPU buffers hasn't been implemented yet!")
-end
-
-local cpu_put = function (self, x, y, ch, fg, bg)
-    if x > 0 and x <= self.width and y > 0 and y <= self.height then
-        self.buffer.chr[y][x] = ch
-        self.buffer.fg[y][x] = fg
-        self.buffer.bg[y][x] = bg
-    end
-end
-
-drivers.cpu.set = function (self, x, y, text, fg, bg)
-    checkArg(1, x, "number")
-    checkArg(2, y, "number")
-    checkArg(3, text, "string")
-    checkArg(4, fg, "number")
-    checkArg(5, bg, "number")
-    for i = 1, #text do
-        cpu_put(self, x+i-1, y, string.sub(text, i, i), fg, bg)
-    end
-end
-
-drivers.cpu.get = function (self, x, y)
-    if x <= 0 or x > self.width or y <= 0 or y > self.height then
-        return nil, "Coordinates out of range"
-    end
-    return self.buffer.chr[y][x], self.buffer.fg[y][x], self.buffer.bg[y][x]
-end
-
-drivers.cpu.clear = function (self, clearColor)
-    self:fill(1, 1, self.width, self.height, " ", clearColor, clearColor)
-end
-
-drivers.cpu.fill = function (self, x, y, w, h, char, fg, bg)
-    char = string.sub(char, 1, 1)
-    for py = y, y+h-1 do
-        for px = x, x+w-1 do
-            self.buffer.chr[py][px] = char
-            self.buffer.fg[py][px] = fg
-            self.buffer.bg[py][px] = bg
-        end
-    end
-end
-
-drivers.cpu.clone = function (self, ...)
-    self:blit(self, ...)
-end
-
-drivers.cpu.crop = function (...)
-    error("Crop functionality is not ready yet!")
-end
-
-drivers.cpu.blit = function (self, other, srcX, srcY, width, height, dstX, dstY)
-    -- Choose scan direction so this can work like a memmove()
-    local xStart, xEnd, xStep, yStart, yEnd, yStep
-    if srcX > dstX then
-        xStart = width - 1
-        xEnd = 0
-        xStep = -1
-    else
-        xStart = 0
-        xEnd = width - 1
-        xStep = 1
-    end
-    if srcY > dstY then
-        yStart = height - 1
-        yEnd = 0
-        yStep = -1
-    else
-        yStart = 0
-        yEnd = height - 1
-        yStep = 1
-    end
-    -- Copy (can't optimize with gpu.blit(), etc)
-    for y = yStart, yEnd, yStep do
-        for x = xStart, xEnd, xStep do
-            local chr, fg, bg = other:get(srcX + x, srcY + y)
-            self.buffer.chr[dstY + y][dstX + x] = chr
-            self.buffer.fg[dstY + y][dstX + x] = fg
-            self.buffer.bg[dstY + y][dstX + x] = bg
-        end
-    end
-end
+addDriver("Framebuf/CPU")
+addDriver("Framebuf/VRAM")
 
 --------------------------------------------------------------------------------
 

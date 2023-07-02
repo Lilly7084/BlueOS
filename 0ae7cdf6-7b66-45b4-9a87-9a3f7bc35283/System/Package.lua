@@ -24,6 +24,7 @@ local findPackageFile = function (name)
         for _, case in ipairs(cases) do
             local filename = case(name)
             table.insert(variants, path .. filename .. ".lua")
+            table.insert(variants, path .. filename .. "/Main.lua")
         end
     end
     -- Run through the list until we find one that exists

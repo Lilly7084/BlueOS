@@ -136,4 +136,4 @@ _G.os = nil
 package.exists = lib.Filesystem.exists
 
 -- Shell file path
-return "/System/Shell.lua"
+return "/System/Shell_framebufTest.lua"
