@@ -1,0 +1,8 @@
+# emulator (ocvm)
+ocvm
+log
+# bios (opencomputers stock eeprom)
+bios.lua
+data
+# tmpfs
+58323ff5-bc6b-3eb3-59ce-894453fadf49
