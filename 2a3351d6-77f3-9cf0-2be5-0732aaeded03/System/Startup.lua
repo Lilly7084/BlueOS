@@ -1,11 +1,6 @@
 _G._OSVERSION = "BlueOS 0.0.1"
 component.proxy = nil  -- We can't use that, remember?
 
---------------------------------------------------------------------------------
--- Collection of useful functions during bootstrap time (libk)
-
-local loadfile = ...  -- Passed down from /init.lua
-
 -- Fetch system calls now to avoid software rug-pulls
 local _cInvoke = component.invoke
 local _cList = component.list
@@ -13,17 +8,22 @@ local _cUptime = computer.uptime
 local _cPullSignal = computer.pullSignal
 local _cPushSignal = computer.pushSignal
 
--- Invoke a method of a component
-local invoke = function (addr, method, ...)
-    checkArg(1, addr, "string")
-    checkArg(2, method, "string")
-    local result = table.pack(xpcall(_cInvoke, function (err)
+-- Useful protected call that will come up almost everywhere else
+bpcall = function (func, ...)
+    checkArg(1, func, "function")
+    local result = table.pack(xpcall(func, function (err)
         return tostring(err) .. "\n" .. debug.traceback()
-    end, addr, method, ...))
+    end, ...))
     if not result[1] then
         return nil, result[2]
     end
     return table.unpack(result, 2, result.n)
+end
+
+local invoke = function (addr, method, ...)
+    checkArg(1, addr, "string")
+    checkArg(2, method, "string")
+    return bpcall(_cInvoke, addr, method, ...)
 end
 
 -- Prepare the graphics hardware for debug output
@@ -65,6 +65,46 @@ local message = function (msg)
     end
 end
 
---------------------------------------------------------------------------------
+-- Needs to be public so that Package can get started.
+-- Will be replaced (and then deallocated by the runtime) shortly after.
+loadfile = ...  -- Passed down from /init.lua
 
-message("Hello, world!")
+dofile = function (path, ...)
+    local func, reason = loadfile(path)
+    if not func then
+        return nil, reason
+    end
+    return bpcall(func, ...)
+end
+
+message(_OSVERSION .. " - Loading...")
+
+message("Preloading system DLLs...")
+do
+    local Package = loadfile("/System/Libraries/Package.lua")()
+    Package.loaded.Package = Package
+    -- Mark libraries which are available during bootstrap time
+    Package.loaded._G = _G
+    Package.loaded.Bit32 = bit32
+    Package.loaded.Coroutine = coroutine
+    Package.loaded.Math = math
+    Package.loaded.OS = os
+    Package.loaded.String = string
+    Package.loaded.Table = table
+    Package.loaded.Unicode = unicode
+    Package.loaded.Utf8 = utf8
+    -- Temporary (remove once actual library is added)
+    Package.loaded.Component = component
+    Package.loaded.Computer = computer
+    -- TODO: Clean up global namespace
+end
+
+-- From here, the process is not very clear
+local printTab = function (name, tbl)
+    message(name .. ": ")
+    for k, v in pairs(tbl) do
+        message("  " .. tostring(k) .. ": " .. tostring(v))
+    end
+end
+printTab("Global namespace", _G)
+printTab("DLL cache", require("Package").loaded)

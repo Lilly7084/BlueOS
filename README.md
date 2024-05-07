@@ -5,10 +5,10 @@ The eventual goal of this project is to make a multi-user, multitasking, graphic
 ## Features
 
 Current features:
-  - None! I haven't actually started yet.
+  - Dynamically-linked library cache and loader (better known as the `package` library)
+  - This does **not** use the `component.proxy` provided by the machine, since that can be implemented on the OS side with no performance detriment.
 
 Desired features (0.1.0):
-  - This will **not** use the `component.proxy` provided by the machine, since that can be implemented on the OS side with no performance detriment.
   - Event routing framework, since this will be an event-driven OS
   - Component abstraction and hot-plugging support
   - Filesystem wrapper with support for multiple volumes and removable media
@@ -44,7 +44,9 @@ The included `client.cfg` is used for my testing copy of [ocvm](https://github.c
 
 Main hard drive (`bootfs`) files:
 ```
-/
+[HDD root]
+|- System
+|  '- Startup.lua                           Startup script called by /init.lua
 '- init.lua                                 Entry point executed by BIOS
 ```
 
