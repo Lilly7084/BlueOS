@@ -21,5 +21,5 @@ end
 
 -- Hang indefinitely
 while true do
-    computer.pullSignal()
+    require("Computer").pullSignal()
 end

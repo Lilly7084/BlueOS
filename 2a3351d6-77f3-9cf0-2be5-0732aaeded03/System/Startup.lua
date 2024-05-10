@@ -40,9 +40,10 @@ if gpu then
 end
 
 -- Print a line of debug text to the screen
+-- Replaced later by IO package, so this will all be unloaded
 local cursor = 1
 local lastYield = _cUptime()
-local message = function (msg)
+print = function (msg)
     if gpu then
         -- Scroll the screen up if the text has reached the bottom
         if cursor > height then
@@ -77,9 +78,9 @@ dofile = function (path, ...)
     return bpcall(func, ...)
 end
 
-message(_OSVERSION .. " - Loading...")
+print(_OSVERSION .. " - Loading...")
 
-message("Preloading system DLLs...")
+print("Preloading system DLLs...")
 do
     local Package = loadfile("/System/Libraries/Package.lua")()
     Package.loaded.Package = Package
@@ -96,14 +97,30 @@ do
     -- Temporary (remove once actual library is added)
     Package.loaded.Component = component
     Package.loaded.Computer = computer
-    -- TODO: Clean up global namespace
+    -- Pre-load libraries which will be needed by basically everything
+    local preloadLibs = {
+        "Event",
+    }
+    for i, name in ipairs(preloadLibs) do
+        print(string.format("  (%i/%i) %s", i, #preloadLibs, name))
+        require(name)
+    end
+    -- Flush signal queue to give everything time to initialize
+    local times = require("Event").flush()
+    print(string.format("Flushed signal queue after %i loop(s)", times))
+    -- Clean up global namespace
+    _G.component = nil
+    _G.computer = nil
+    _G.debug = nil
+    _G.unicode = nil
+    _G.utf8 = nil
 end
 
 -- From here, the process is not very clear
 local printTab = function (name, tbl)
-    message(name .. ": ")
+    print(name .. ": ")
     for k, v in pairs(tbl) do
-        message("  " .. tostring(k) .. ": " .. tostring(v))
+        print("  " .. tostring(k) .. ": " .. tostring(v))
     end
 end
 printTab("Global namespace", _G)
