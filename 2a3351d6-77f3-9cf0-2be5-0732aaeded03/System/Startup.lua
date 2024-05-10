@@ -95,11 +95,11 @@ do
     Package.loaded.Unicode = unicode
     Package.loaded.Utf8 = utf8
     -- Temporary (remove once actual library is added)
-    Package.loaded.Component = component
     Package.loaded.Computer = computer
     -- Pre-load libraries which will be needed by basically everything
     local preloadLibs = {
         "Event",
+        "Component",
     }
     for i, name in ipairs(preloadLibs) do
         print(string.format("  (%i/%i) %s", i, #preloadLibs, name))
@@ -125,3 +125,10 @@ local printTab = function (name, tbl)
 end
 printTab("Global namespace", _G)
 printTab("DLL cache", require("Package").loaded)
+
+do
+    local Component = require("Component")
+    local gpu = Component.list("gpu")()
+    gpu = Component.proxy(gpu)
+    gpu.set(1, 1, "*")
+end

@@ -1,4 +1,4 @@
-# BlueOS version 0.0.1
+# BlueOS version 0.0.3
 
 The eventual goal of this project is to make a multi-user, multitasking, graphical operating system for the Minecraft mod [OpenComputers](https://github.com/MightyPirates/OpenComputers). That's really a lot to do, though, so the minimum viable product (0.1.0) will be a single-user terminal-only OS.
 
@@ -6,11 +6,11 @@ The eventual goal of this project is to make a multi-user, multitasking, graphic
 
 Current features:
   - Dynamically-linked library cache and loader (better known as the `package` library)
+  - Event routing framework, since this will be an event-driven OS
+  - Component abstraction and hot-plugging support (WIP)
   - This does **not** use the `component.proxy` provided by the machine, since that can be implemented on the OS side with no performance detriment.
 
 Desired features (0.1.0):
-  - Event routing framework, since this will be an event-driven OS
-  - Component abstraction and hot-plugging support
   - Filesystem wrapper with support for multiple volumes and removable media
   - Handle-based file I/O, including Unix-like `stdin`/`stdout`/`stderr` pseudo-files
   - Extra stdlib functions for protected calls and manipulating numbers and tables
@@ -46,6 +46,10 @@ Main hard drive (`bootfs`) files:
 ```
 [HDD root]
 |- System
+|  |- Libraries                             Core libraries
+|  |  |- Component.lua                      Component abstraction and hot-plugging (WIP)
+|  |  |- Event.lua                          Event routing (Untested)
+|  |  '- Package.lua                        Dynamically-linked library cache and loader
 |  '- Startup.lua                           Startup script called by /init.lua
 '- init.lua                                 Entry point executed by BIOS
 ```
