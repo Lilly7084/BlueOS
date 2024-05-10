@@ -128,7 +128,5 @@ printTab("DLL cache", require("Package").loaded)
 
 do
     local Component = require("Component")
-    local gpu = Component.list("gpu")()
-    gpu = Component.proxy(gpu)
-    gpu.set(1, 1, "*")
+    Component.gpu.set(1, 1, "*")
 end

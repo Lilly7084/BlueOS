@@ -1,8 +1,8 @@
 local Component = _G.component
 local proxies = {}
+local primaries = {}
 
--- REMEMBER: We don't have component.proxy from the machine,
--- so we'll need to implement that ourself (including docs in field __tostring)
+local Event = require("Event")
 
 -- Resolve an abbreviated address to a full address
 -- Optionally specify component type to filter results
@@ -73,13 +73,21 @@ Component.proxy = function (addr)
     end
     -- Gather information needed to assemble the proxy
     local ctype, reason = bpcall(Component.type, addr)
-    if not ctype then return nil, reason end
+    if not ctype then
+        return nil, reason
+    end
     local slot, reason = bpcall(Component.slot, addr)
-    if not slot then return nil, reason end
+    if not slot then
+        return nil, reason
+    end
     local methods, reason = bpcall(Component.methods, addr) -- [method] = 
-    if not methods then return nil, reason end
+    if not methods then
+        return nil, reason
+    end
     local fields, reason = bpcall(Component.fields, addr) -- [method] = {getter,setter}
-    if not fields then return nil, reason end
+    if not fields then
+        return nil, reason
+    end
     -- And now assemble the proxy
     local proxy = {
         address = addr,
@@ -101,7 +109,63 @@ Component.proxy = function (addr)
     return proxy
 end
 
--- TODO: Maintain a cache of proxies for 'primary' components
--- TODO: Support hot-plugging components
+-- Check whether a primary component of a given type is available
+Component.isAvailable = function (ctype)
+    checkArg(1, ctype, "string")
+    return primaries[ctype] ~= nil
+end
+
+-- Retrieve the primary component of a given type
+Component.getPrimary = function (ctype)
+    checkArg(1, ctype, "string")
+    local proxy = primaries[ctype]
+    if not proxy then
+        return nil, "No such component"
+    end
+    return proxy
+end
+
+-- Set or remove the primary component of a given type
+Component.setPrimary = function (ctype, addr)
+    checkArg(1, ctype, "string")
+    checkArg(2, addr, "string", "nil")
+    if addr ~= nil then
+        -- Bind
+        if not Component.isAvailable(ctype) then
+            primaries[ctype] = Component.proxy(addr)
+            Event.push("component_available", ctype)
+            return true
+        end
+        return nil, "Component already available"
+    else
+        -- Unbind
+        if Component.isAvailable(ctype) then
+            primaries[ctype] = nil
+            Event.push("component_unavailable", ctype)
+            return true
+        end
+        return nil, "No such component"
+    end
+end
+
+-- Syntactic sugar for retrieving primaries, i.e. Component.gpu
+setmetatable(Component, {
+    __index = function (self, key)
+        return Component.getPrimary(key)
+    end
+})
+
+-- Support hot-plugging components
+Event.listen("component_added", function (_, addr, ctype)
+    Component.setPrimary(ctype, addr)
+end)
+Event.listen("component_removed", function (_, addr, ctype)
+    Component.setPrimary(ctype, nil)
+end)
+
+-- Register all components which were present at boot time
+for addr, ctype in Component.list() do
+    Event.push("component_added", addr, ctype)
+end
 
 return Component

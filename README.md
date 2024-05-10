@@ -7,13 +7,14 @@ The eventual goal of this project is to make a multi-user, multitasking, graphic
 Current features:
   - Dynamically-linked library cache and loader (better known as the `package` library)
   - Event routing framework, since this will be an event-driven OS
-  - Component abstraction and hot-plugging support (WIP)
-  - This does **not** use the `component.proxy` provided by the machine, since that can be implemented on the OS side with no performance detriment.
+  - Component abstraction and hot-plugging support
+  - This does **not** use the `component.proxy` provided by the machine, since that can be implemented on the OS side.
 
 Desired features (0.1.0):
   - Filesystem wrapper with support for multiple volumes and removable media
   - Handle-based file I/O, including Unix-like `stdin`/`stdout`/`stderr` pseudo-files
   - Extra stdlib functions for protected calls and manipulating numbers and tables
+  - Simple text-based terminal as a bare minimum to operate the computer
   - Basic collection of command-line utilities + text editor to make new programs
 
 Desired features (Stretch):
@@ -47,8 +48,8 @@ Main hard drive (`bootfs`) files:
 [HDD root]
 |- System
 |  |- Libraries                             Core libraries
-|  |  |- Component.lua                      Component abstraction and hot-plugging (WIP)
-|  |  |- Event.lua                          Event routing (Untested)
+|  |  |- Component.lua                      Component abstraction and hot-plugging
+|  |  |- Event.lua                          Event routing
 |  |  '- Package.lua                        Dynamically-linked library cache and loader
 |  '- Startup.lua                           Startup script called by /init.lua
 '- init.lua                                 Entry point executed by BIOS
