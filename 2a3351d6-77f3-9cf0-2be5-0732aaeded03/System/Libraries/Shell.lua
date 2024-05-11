@@ -2,7 +2,6 @@ local Shell = {}
 
 local Component = require("Component")
 local Event = require("Event")
---------------------------------------------------------------------------------
 
 local gpu = Component.gpu
 local width, height = gpu.getResolution()
@@ -18,7 +17,10 @@ gpu.set(width, height - 2, "┐") -- Top right
 gpu.set(1, height, "└") -- Bottom left
 gpu.set(width, height, "┘") -- Bottom right
 
--- We don't have the IO library yet, so we need to implement 'print' ourself
+--------------------------------------------------------------------------------
+-- Compensating for libraries which aren't implemented yet
+
+-- IO:
 local cursor = 1
 local putLine = function (line)
     checkArg(1, line, "string")
@@ -33,31 +35,23 @@ local putLine = function (line)
 end
 
 print = function (fmt, ...)
-    checkArg(1, fmt, "string")
-    local text = string.format(fmt, ...)
+    local text
+    if type(fmt) == "string" then
+        text = string.format(fmt, ...)
+    else
+        text = tostring(fmt)
+    end
     for line in string.gmatch(text .. "\n", "(.-)\n") do
         putLine(line)
     end
 end
 
---------------------------------------------------------------------------------
-
--- local printTab = function (name, tbl, fmt)
---     checkArg(1, name, "string")
---     checkArg(2, tbl, "table")
---     checkArg(3, fmt, "function", "nil")
---     if fmt == nil then
---         fmt = function (x) return tostring(x) end
---     end
---     print("%s:", name)
---     for k, v in pairs(tbl) do
---         print("  - %s = %s", k, fmt(v))
---     end
--- end
-
+-- Keyboard:
 local isPrintable = function (char)
     return char ~= nil and char >= 0x20 and char < 0x7F
 end
+
+--------------------------------------------------------------------------------
 
 local optRequire = function (name)
     local success, mod = pcall(require, name)
@@ -68,12 +62,32 @@ end
 
 local env = setmetatable({}, {
     __index = function (self, key)
-        return optRequire(key)
+        _ENV[key] = _ENV[key] or optRequire(key)
+        return _ENV[key]
     end
 })
 
--- "return 4" => No response, line does not clear
--- "return 2 + 2" => expected eof
+env.print = function (...)
+    local args = table.pack(...)
+    local text = {}
+    for i, x in ipairs(args) do
+        text[i] = tostring(x)
+    end
+    print(table.concat(text, " "))
+end
+
+env.printTab = function (name, tbl, fmt)
+    checkArg(1, name, "string")
+    checkArg(2, tbl, "table")
+    checkArg(3, fmt, "function", "nil")
+    if fmt == nil then
+        fmt = function (x) return tostring(x) end
+    end
+    print("%s:", name)
+    for k, v in pairs(tbl) do
+        print("  - %s = %s", k, fmt(v))
+    end
+end
 
 local runIDLE = function (line)
     print(">>> %s", line)
@@ -95,11 +109,13 @@ local runIDLE = function (line)
         print("Exec error: %s", reason)
         return
     end
-    print(tostring(response))
+    if response ~= nil then
+        print(tostring(response))
+    end
 end
 
 local drawInputBox = function (text)
-    -- TODO: if 'text' is too long to fit in the box, this will overrun
+    -- TODO: if text is too long to fit in the box, this will overrun
     gpu.fill(3, height - 1, width - 4, 1, " ")
     gpu.set(3, height - 1, text .. "▂")
 end
