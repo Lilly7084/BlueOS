@@ -1,9 +1,11 @@
 local Event = {}
-Event.handlers = {}
+local handlers = {}
 
 local _cUptime = computer.uptime
 local _cPullSignal = computer.pullSignal
 local _infinity = math.maxinteger or math.huge
+--------------------------------------------------------------------------------
+-- Bare bones interface for managing handlers
 
 -- key: nil (catch all listener), false (timer), or string (filtered listener)
 -- callback: function called with unpacked signal
@@ -17,21 +19,24 @@ Event.register = function (handler)
     local id = 0
     repeat
         id = id + 1
-    until not Event.handlers[id]
+    until not handlers[id]
     -- Register in that slot
-    Event.handlers[id] = handler
+    handlers[id] = handler
     return id
 end
 
 -- Cancel a handler according to the ID returned by Event.register
 Event.cancel = function (id)
     checkArg(1, id, "number")
-    if Event.handlers[id] then
-        Event.handlers[id] = nil
+    if handlers[id] then
+        handlers[id] = nil
         return true
     end
     return nil, "No such handler"
 end
+
+--------------------------------------------------------------------------------
+-- Hook into computer.pullSignal to dispatch all relevant handlers
 
 local printSignal = function (signal)
     local text = {}
@@ -41,15 +46,14 @@ local printSignal = function (signal)
     print("[Event] " .. table.concat(text, " "))
 end
 
--- Dispatch all available handlers according to a packed signal
 local dispatchSignal = function (signal)
     printSignal(signal)
-    -- Create a temp. copy of Event.handlers so we can edit it while iterating
-    local handlers = {}
-    for k, v in ipairs(Event.handlers) do
-        handlers[k] = v
+    -- Create a temp. copy of handlers so we can edit it while iterating
+    local tmp_handlers = {}
+    for k, v in ipairs(handlers) do
+        tmp_handlers[k] = v
     end
-    for id, handler in ipairs(handlers) do
+    for id, handler in ipairs(tmp_handlers) do
         -- key == nil => Catch-all. Timers are false so they aren't run here.
         -- key == signal[1] => Key matches first value of signal (signal ID)
         -- deadline => Deadline has been reached, handler must be run
@@ -58,28 +62,27 @@ local dispatchSignal = function (signal)
             handler.deadline = handler.deadline + handler.timeout
             -- If the handler has expired, remove it before dispatching it
             -- in case of, for example, timers that pull
-            -- 'Event.handlers[id] == handler' was cargo culted from OpenOS
-            if handler.times <= 0 and Event.handlers[id] == handler then
-                Event.handlers[id] = nil
+            -- 'handlers[id] == handler' was cargo culted from OpenOS
+            if handler.times <= 0 and handlers[id] == handler then
+                handlers[id] = nil
             end
             -- Now dispatch
             -- TODO: Report and/or log errors which occur in event handlers
             local response = bpcall(handler.callback, table.unpack(signal, 1, signal.n))
             -- A response of false (NOT nil) means the handler should be destroyed
-            if response == false and Event.handlers[id] == handler then
-                Event.handlers[id] = nil
+            if response == false and handlers[id] == handler then
+                handlers[id] = nil
             end
         end
     end
 end
 
--- Hooked version of computer.pullSignal() that considers handlers
 local hookedPull = function (timeout)
     local deadline = _cUptime() + (timeout or _infinity)
     repeat
         -- Find the deadline of the nearest handler
         local nearest = deadline
-        for _, handler in ipairs(Event.handlers) do
+        for _, handler in ipairs(handlers) do
             nearest = math.min(nearest, handler.deadline)
         end
         -- Actual pull, timing out before that deadline, so the handler is respected
@@ -92,6 +95,9 @@ local hookedPull = function (timeout)
     until _cUptime() >= deadline
     return nil
 end
+
+--------------------------------------------------------------------------------
+-- More convenient interfaces for handlers
 
 -- Register a listener
 Event.listen = function (key, callback)
@@ -107,9 +113,9 @@ end
 Event.ignore = function (key, callback)
     checkArg(1, key, "string", "nil")
     checkArg(2, callback, "function")
-    for id, handler in ipairs(Event.handlers) do
+    for id, handler in ipairs(handlers) do
         if handler.key == key and handler.callback == callback then
-            Event.handlers[id] = nil
+            handlers[id] = nil
             return true
         end
     end
@@ -126,7 +132,43 @@ Event.timer = function (timeout, callback, times)
     }
 end
 
--- Blocking pull which only returns signals matching a filter
+Event.timeout = function (timeout, callback)
+    return Event.timer(timeout, callback, 1)
+end
+
+--------------------------------------------------------------------------------
+-- Filter generators for blocking pulls
+
+-- Implements filterbehavior of Event.pull
+local createPlainFilter = function (...)
+    local args = table.pack(...)
+    return function (signal)
+        for i = 1, #args do
+            if args[i] ~= nil and args[i] ~= signal[i] then
+                return false
+            end
+        end
+        return true
+    end
+end
+
+-- Implements filter behavior of Event.pullMultiple
+local createMultiFilter = function (...)
+    local args = table.pack(...)
+    return function (signal)
+        for i = 1, #args do
+            if args[i] == signal[1] then
+                return true
+            end
+        end
+        return false
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Blocking pulls
+
+-- Blocking pull which only returns signals matched by a filter function
 Event.pullFiltered = function (filter, timeout)
     checkArg(1, filter, "function")
     checkArg(2, timeout, "number", "nil")
@@ -140,19 +182,6 @@ Event.pullFiltered = function (filter, timeout)
     return nil
 end
 
--- Generates a filter that behaves like Event.pull
-local createPlainFilter = function (...)
-    local args = table.pack(...)
-    return function (signal)
-        for i = 1, #args do
-            if args[i] ~= nil and args[i] ~= signal[i] then
-                return false
-            end
-        end
-        return true
-    end
-end
-
 -- Blocking pull that matches a single event template
 Event.pull = function (first, ...)
     local filter, timeout
@@ -164,19 +193,6 @@ Event.pull = function (first, ...)
         filter = createPlainFilter(first, ...)
     end
     return Event.pullFiltered(filter, timeout)
-end
-
--- Generates a filter that behaves like Event.pullMultiple
-local createMultiFilter = function (...)
-    local args = table.pack(...)
-    return function (signal)
-        for i = 1, #args do
-            if args[i] == signal[1] then
-                return true
-            end
-        end
-        return false
-    end
 end
 
 -- Blocking pull that matches one of a list of keys
@@ -215,5 +231,7 @@ Event.flush = function (timeout)
     return false
 end
 
+--------------------------------------------------------------------------------
+Event.handlers = handlers
 computer.pullSignal = hookedPull
 return Event

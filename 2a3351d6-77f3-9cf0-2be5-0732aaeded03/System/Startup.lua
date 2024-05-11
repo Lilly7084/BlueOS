@@ -20,6 +20,10 @@ bpcall = function (func, ...)
     return table.unpack(result, 2, result.n)
 end
 
+--------------------------------------------------------------------------------
+-- Initial implementations of stblib methods, good enough for the bootstrap.
+-- These will be replaced and unloaded once their real implementations load in.
+
 local invoke = function (addr, method, ...)
     checkArg(1, addr, "string")
     checkArg(2, method, "string")
@@ -43,7 +47,7 @@ end
 -- Replaced later by IO package, so this will all be unloaded
 local cursor = 1
 local lastYield = _cUptime()
-print = function (msg)
+print = function (...)
     if gpu then
         -- Scroll the screen up if the text has reached the bottom
         if cursor > height then
@@ -51,7 +55,7 @@ print = function (msg)
             invoke(gpu, "fill", 1, height, width, 1, " ")
             cursor = height
         end
-        invoke(gpu, "set", 1, cursor, tostring(msg))
+        invoke(gpu, "set", 1, cursor, string.format(...))
         cursor = cursor + 1
     end
     -- Yield from time to time, so the watchdog timer doesn't reset us
@@ -78,7 +82,10 @@ dofile = function (path, ...)
     return bpcall(func, ...)
 end
 
-print(_OSVERSION .. " - Loading...")
+--------------------------------------------------------------------------------
+-- Real initialization process
+
+print("%s (%s) - Loading...", _OSVERSION, _VERSION)
 
 print("Preloading system DLLs...")
 do
@@ -102,12 +109,12 @@ do
         "Component",
     }
     for i, name in ipairs(preloadLibs) do
-        print(string.format("  (%i/%i) %s", i, #preloadLibs, name))
+        print("  (%i/%i) %s", i, #preloadLibs, name)
         require(name)
     end
     -- Flush signal queue to give everything time to initialize
     local times = require("Event").flush()
-    print(string.format("Flushed signal queue after %i loop(s)", times))
+    print("Flushed signal queue after %i loop(s)", times)
     -- Clean up global namespace
     _G.component = nil
     _G.computer = nil
@@ -116,17 +123,23 @@ do
     _G.utf8 = nil
 end
 
+--------------------------------------------------------------------------------
 -- From here, the process is not very clear
-local printTab = function (name, tbl)
-    print(name .. ": ")
+
+local printTab = function (name, tbl, fmt)
+    checkArg(1, name, "string")
+    checkArg(2, tbl, "table")
+    checkArg(3, fmt, "function", "nil")
+    if fmt == nil then
+        fmt = function (x) return tostring(x) end
+    end
+    print("%s:", name)
     for k, v in pairs(tbl) do
-        print("  " .. tostring(k) .. ": " .. tostring(v))
+        print("    %s: %s", k, fmt(v))
     end
 end
-printTab("Global namespace", _G)
-printTab("DLL cache", require("Package").loaded)
 
-do
-    local Component = require("Component")
-    Component.gpu.set(1, 1, "*")
-end
+-- printTab("Global namespace", _G)
+printTab("DLL cache", require("Package").loaded)
+printTab("Component proxy cache", require("Component").proxies)
+printTab("Primary component set", require("Component").primaries, function (x) return x.address end)

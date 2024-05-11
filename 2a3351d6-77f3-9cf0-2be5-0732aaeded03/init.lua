@@ -2,18 +2,18 @@
 do
     local invoke = component.invoke
     local eeprom = component.list("eeprom")() or error("Missing EEPROM")
-    local bootfs = invoke(eeprom, "getData") or error("Missing boot filesystem")
+    local hdd = invoke(eeprom, "getData") or error("Missing boot filesystem")
     local loadfile = function (path)
-        local handle, reason = invoke(bootfs, "open", path, "r")
+        local handle, reason = invoke(hdd, "open", path, "r")
         if not handle then
             return nil, reason
         end
         local buffer = ""
         repeat
-            local chunk = invoke(bootfs, "read", handle, math.maxinteger or math.huge)
+            local chunk = invoke(hdd, "read", handle, 0x20000)
             buffer = buffer .. (chunk or "")
         until not chunk
-        invoke(bootfs, "close", handle)
+        invoke(hdd, "close", handle)
         return load(buffer, "=" .. path, "t", _G)
     end
     loadfile("/System/Startup.lua")(loadfile)

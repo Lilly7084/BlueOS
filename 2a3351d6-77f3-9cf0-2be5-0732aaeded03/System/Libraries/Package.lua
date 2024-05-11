@@ -1,6 +1,7 @@
 local Package = {}
-Package.loaded = {}  -- Cache of already-loaded DLLs
-Package.loading = {}  -- Lists DLLs in flight to detect circular dependencies
+local loaded = {}  -- Cache of already-loaded DLLs
+local loading = {}  -- Lists DLLs in flight to detect circular dependencies
+--------------------------------------------------------------------------------
 
 -- Resolve the absolute path of a library's main file from a name
 Package.find = function (name)
@@ -30,7 +31,7 @@ local loadLib = function (name, ...)
 end
 
 -- Load in a library, respecting the cache and catching circular dependencies
-require = function (name, ...)
+Package.require = function (name, ...)
     if Package.loaded[name] then  -- Already loaded
         return Package.loaded[name]
     elseif Package.loading[name] then  -- Circular dependency
@@ -62,4 +63,8 @@ Package.delay = function (lib, path)
     return setmetatable(lib, meta)
 end
 
+--------------------------------------------------------------------------------
+Package.loaded = loaded
+Package.loading = loading
+_G.require = Package.require
 return Package

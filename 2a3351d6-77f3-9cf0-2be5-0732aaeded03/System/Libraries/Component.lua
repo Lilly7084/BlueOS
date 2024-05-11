@@ -1,25 +1,29 @@
 local Component = _G.component
-local proxies = {}
+-- __mode='v' : Make this a weak table so proxies used by nothing get unloaded
+local proxies = setmetatable({}, { __mode = 'v' })
 local primaries = {}
 
 local Event = require("Event")
+--------------------------------------------------------------------------------
 
 -- Resolve an abbreviated address to a full address
 -- Optionally specify component type to filter results
 Component.get = function (addr, ctype)
     checkArg(1, addr, "string")
     checkArg(2, ctype, "string", "nil")
-    -- TODO: Use filter built into Component.list to make search faster?
-    for thatAddr, thatCtype in Component.list() do
-        if string.sub(thatAddr, 1, #addr) == addr and (ctype == nil or ctype == thatCtype) then
+    for thatAddr, thatCtype in Component.list(ctype) do
+        if string.sub(thatAddr, 1, #addr) == addr then
             return thatAddr
         end
     end
     return nil, "No such component"
 end
 
+--------------------------------------------------------------------------------
+-- Component proxies; tables which make component invocations more convenient
+
 -- Metatable for proxy methods: invocation and doc strings
-local mtMethod = {
+local mt_method = {
     -- i.e. gpu.setResolution(...)
     __call = function (self, ...)
         return Component.invoke(self.address, self.name, ...)
@@ -31,7 +35,7 @@ local mtMethod = {
 }
 
 -- Metatable for proxy objects: makes fields appear as part of the proxy itself
-local mtProxy = {
+local mt_proxy = {
     __index = function(self, key)
         if self.fields[key] and self.fields[key].getter then
             return Component.invoke(self.address, key)
@@ -80,11 +84,11 @@ Component.proxy = function (addr)
     if not slot then
         return nil, reason
     end
-    local methods, reason = bpcall(Component.methods, addr) -- [method] = 
+    local methods, reason = bpcall(Component.methods, addr)
     if not methods then
         return nil, reason
     end
-    local fields, reason = bpcall(Component.fields, addr) -- [method] = {getter,setter}
+    local fields, reason = bpcall(Component.fields, addr)
     if not fields then
         return nil, reason
     end
@@ -98,16 +102,19 @@ Component.proxy = function (addr)
         proxy[method] = setmetatable({
             address = addr,
             name = method
-        }, mtMethod)
+        }, mt_method)
     end
     for field, info in pairs(fields) do
         proxy.fields[field] = info
     end
     -- Add it to the cache so this work doesn't need to be done again
-    setmetatable(proxy, mtProxy)
+    setmetatable(proxy, mt_proxy)
     proxies[addr] = proxy
     return proxy
 end
+
+--------------------------------------------------------------------------------
+-- Primary components
 
 -- Check whether a primary component of a given type is available
 Component.isAvailable = function (ctype)
@@ -155,12 +162,19 @@ setmetatable(Component, {
     end
 })
 
--- Support hot-plugging components
+--------------------------------------------------------------------------------
+-- Hot plugging
+
+-- Listen for components being plugged in or unplugged
 Event.listen("component_added", function (_, addr, ctype)
     Component.setPrimary(ctype, addr)
 end)
 Event.listen("component_removed", function (_, addr, ctype)
-    Component.setPrimary(ctype, nil)
+    -- Only unbind if the component removed was the primary!
+    if Component.getPrimary(ctype).address == addr then
+        Component.setPrimary(ctype, nil)
+    end
+    -- TODO: Fall back to another available component of the same type?
 end)
 
 -- Register all components which were present at boot time
@@ -168,4 +182,7 @@ for addr, ctype in Component.list() do
     Event.push("component_added", addr, ctype)
 end
 
+--------------------------------------------------------------------------------
+Component.proxies = proxies
+Component.primaries = primaries
 return Component
