@@ -7,12 +7,13 @@ local _cList = component.list
 local _cUptime = computer.uptime
 local _cPullSignal = computer.pullSignal
 local _cPushSignal = computer.pushSignal
+local _dTraceback = debug.traceback
 
 -- Useful protected call that will come up almost everywhere else
 bpcall = function (func, ...)
     checkArg(1, func, "function")
     local result = table.pack(xpcall(func, function (err)
-        return tostring(err) .. "\n" .. debug.traceback()
+        return tostring(err) .. "\n" .. _dTraceback()
     end, ...))
     if not result[1] then
         return nil, result[2]
@@ -93,16 +94,16 @@ do
     Package.loaded.Package = Package
     -- Mark libraries which are available during bootstrap time
     Package.loaded._G = _G
-    Package.loaded.Bit32 = bit32
     Package.loaded.Coroutine = coroutine
     Package.loaded.Math = math
-    Package.loaded.OS = os
     Package.loaded.String = string
-    Package.loaded.Table = table
     Package.loaded.Unicode = unicode
     Package.loaded.Utf8 = utf8
     -- Temporary (remove once actual library is added)
+    Package.loaded.Bit32 = bit32 -- Must be provided by us for Lua 5.3+
     Package.loaded.Computer = computer
+    Package.loaded.OS = os -- Some methods must be added in software
+    Package.loaded.Table = table -- Plan to add .merge, .clone, etc.
     -- Pre-load libraries which will be needed by basically everything
     local preloadLibs = {
         "Event",
@@ -123,23 +124,4 @@ do
     _G.utf8 = nil
 end
 
---------------------------------------------------------------------------------
--- From here, the process is not very clear
-
-local printTab = function (name, tbl, fmt)
-    checkArg(1, name, "string")
-    checkArg(2, tbl, "table")
-    checkArg(3, fmt, "function", "nil")
-    if fmt == nil then
-        fmt = function (x) return tostring(x) end
-    end
-    print("%s:", name)
-    for k, v in pairs(tbl) do
-        print("    %s: %s", k, fmt(v))
-    end
-end
-
--- printTab("Global namespace", _G)
-printTab("DLL cache", require("Package").loaded)
-printTab("Component proxy cache", require("Component").proxies)
-printTab("Primary component set", require("Component").primaries, function (x) return x.address end)
+require("Shell").start()

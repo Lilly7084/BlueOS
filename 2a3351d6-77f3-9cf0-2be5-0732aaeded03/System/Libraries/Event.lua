@@ -38,16 +38,16 @@ end
 --------------------------------------------------------------------------------
 -- Hook into computer.pullSignal to dispatch all relevant handlers
 
-local printSignal = function (signal)
-    local text = {}
-    for i, chunk in ipairs(signal) do
-        text[i] = tostring(chunk)
-    end
-    print("[Event] " .. table.concat(text, " "))
-end
+-- local printSignal = function (signal)
+--     local text = {}
+--     for i, chunk in ipairs(signal) do
+--         text[i] = tostring(chunk)
+--     end
+--     print("[Event] " .. table.concat(text, " "))
+-- end
 
 local dispatchSignal = function (signal)
-    printSignal(signal)
+    -- printSignal(signal)
     -- Create a temp. copy of handlers so we can edit it while iterating
     local tmp_handlers = {}
     for k, v in ipairs(handlers) do
@@ -67,8 +67,11 @@ local dispatchSignal = function (signal)
                 handlers[id] = nil
             end
             -- Now dispatch
-            -- TODO: Report and/or log errors which occur in event handlers
-            local response = bpcall(handler.callback, table.unpack(signal, 1, signal.n))
+            local response, reason = bpcall(handler.callback, table.unpack(signal, 1, signal.n))
+            if not response and reason then
+                -- TODO: Properly report and/or log errors which occur in event handlers
+                print("Event error: " .. tostring(reason))
+            end
             -- A response of false (NOT nil) means the handler should be destroyed
             if response == false and handlers[id] == handler then
                 handlers[id] = nil
