@@ -1,4 +1,4 @@
-# BlueOS version 0.0.3
+# BlueOS version 0.0.5
 
 The eventual goal of this project is to make a multi-user, multitasking, graphical operating system for the Minecraft mod [OpenComputers](https://github.com/MightyPirates/OpenComputers). That's really a lot to do, though, so the minimum viable product (0.1.0) will be a single-user terminal-only OS.
 
@@ -8,13 +8,13 @@ Current features:
   - Dynamically-linked library cache and loader (better known as the `package` library)
   - Event routing framework, since this will be an event-driven OS
   - Component abstraction and hot-plugging support
+  - Filesystem wrapper with support for multiple volumes and removable media
+  - Simple text-based terminal as a bare minimum to operate the computer
   - This does **not** use the `component.proxy` provided by the machine, since that can be implemented on the OS side.
 
 Desired features (0.1.0):
-  - Filesystem wrapper with support for multiple volumes and removable media
   - Handle-based file I/O, including Unix-like `stdin`/`stdout`/`stderr` pseudo-files
   - Extra stdlib functions for protected calls and manipulating numbers and tables
-  - Simple text-based terminal as a bare minimum to operate the computer
   - Basic collection of command-line utilities + text editor to make new programs
 
 Desired features (Stretch):
@@ -43,14 +43,16 @@ Repository files:
 
 The included `client.cfg` is used for my testing copy of [ocvm](https://github.com/payonel/ocvm). _The root of the repository_ should be used as the virtual machine path when running ocvm (as the argument after the executable name).
 
-Main hard drive (`bootfs`) files:
+Main hard drive (`rootfs`) files:
 ```
 [HDD root]
 |- System
 |  |- Libraries                             Core libraries
 |  |  |- Component.lua                      Component abstraction and hot-plugging
 |  |  |- Event.lua                          Event routing
-|  |  '- Package.lua                        Dynamically-linked library cache and loader
+|  |  |- Filesystem.lua                     Filesystem driver
+|  |  |- Package.lua                        Dynamically-linked library cache and loader
+|  |  '- Shell.lua                          Temporary shell to test kernel components
 |  '- Startup.lua                           Startup script called by /init.lua
 '- init.lua                                 Entry point executed by BIOS
 ```

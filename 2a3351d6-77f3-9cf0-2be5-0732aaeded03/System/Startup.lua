@@ -86,12 +86,13 @@ end
 --------------------------------------------------------------------------------
 -- Real initialization process
 
-print("%s (%s) - Loading...", _OSVERSION, _VERSION)
-
-print("Preloading system DLLs...")
 do
+    print("%s (%s) - Loading...", _OSVERSION, _VERSION)
+
+    print("Preloading system DLLs...")
     local Package = loadfile("/System/Libraries/Package.lua")()
     Package.loaded.Package = Package
+
     -- Mark libraries which are available during bootstrap time
     Package.loaded._G = _G
     Package.loaded.Coroutine = coroutine
@@ -104,24 +105,33 @@ do
     Package.loaded.Computer = computer
     Package.loaded.OS = os -- Some methods must be added in software
     Package.loaded.Table = table -- Plan to add .merge, .clone, etc.
+
     -- Pre-load libraries which will be needed by basically everything
     local preloadLibs = {
         "Event",
         "Component",
+        "Filesystem",
     }
     for i, name in ipairs(preloadLibs) do
         print("  (%i/%i) %s", i, #preloadLibs, name)
         require(name)
     end
+
     -- Flush signal queue to give everything time to initialize
     local times = require("Event").flush()
     print("Flushed signal queue after %i loop(s)", times)
+
     -- Clean up global namespace
     _G.component = nil
     _G.computer = nil
     _G.debug = nil
     _G.unicode = nil
     _G.utf8 = nil
+    
+    print("Initializing filesystems...")
+    local Filesystem = require("Filesystem")
+    Filesystem.mount(require("Component").eeprom.getData(), "/")
+    Filesystem.mount(require("Computer").tmpAddress(), "/Temp/")
 end
 
 require("Shell").start()
