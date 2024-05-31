@@ -1,5 +1,4 @@
 _G._OSVERSION = "BlueOS 0.0.1"
-component.proxy = nil  -- We can't use that, remember?
 
 -- Fetch system calls now to avoid software rug-pulls
 local _cInvoke = component.invoke
@@ -48,7 +47,7 @@ end
 -- Replaced later by IO package, so this will all be unloaded
 local cursor = 1
 local lastYield = _cUptime()
-print = function (...)
+printf = function (...)
     if gpu then
         -- Scroll the screen up if the text has reached the bottom
         if cursor > height then
@@ -87,24 +86,25 @@ end
 -- Real initialization process
 
 do
-    print("%s (%s) - Loading...", _OSVERSION, _VERSION)
+    printf("%s (%s) - Loading...", _OSVERSION, _VERSION)
 
-    print("Preloading system DLLs...")
+    printf("Preloading system DLLs...")
     local Package = loadfile("/System/Libraries/Package.lua")()
-    Package.loaded.Package = Package
+    local loaded = Package.internal.loaded
+    loaded.Package = Package
 
     -- Mark libraries which are available during bootstrap time
-    Package.loaded._G = _G
-    Package.loaded.Coroutine = coroutine
-    Package.loaded.Math = math
-    Package.loaded.String = string
-    Package.loaded.Unicode = unicode
-    Package.loaded.Utf8 = utf8
+    loaded._G = _G
+    loaded.Coroutine = coroutine
+    loaded.Math = math
+    loaded.String = string
+    loaded.Unicode = unicode
+    loaded.Utf8 = utf8
     -- Temporary (remove once actual library is added)
-    Package.loaded.Bit32 = bit32 -- Must be provided by us for Lua 5.3+
-    Package.loaded.Computer = computer
-    Package.loaded.OS = os -- Some methods must be added in software
-    Package.loaded.Table = table -- Plan to add .merge, .clone, etc.
+    loaded.Bit32 = bit32 -- Must be provided by us for Lua 5.3+
+    loaded.Computer = computer
+    loaded.OS = os -- Some methods must be added in software
+    loaded.Table = table -- Plan to add .merge, .clone, etc.
 
     -- Pre-load libraries which will be needed by basically everything
     local preloadLibs = {
@@ -113,13 +113,13 @@ do
         "Filesystem",
     }
     for i, name in ipairs(preloadLibs) do
-        print("  (%i/%i) %s", i, #preloadLibs, name)
+        printf("  (%i/%i) %s", i, #preloadLibs, name)
         require(name)
     end
 
     -- Flush signal queue to give everything time to initialize
     local times = require("Event").flush()
-    print("Flushed signal queue after %i loop(s)", times)
+    printf("Flushed signal queue after %i loop(s)", times)
 
     -- Clean up global namespace
     _G.component = nil
@@ -128,7 +128,7 @@ do
     _G.unicode = nil
     _G.utf8 = nil
     
-    print("Initializing filesystems...")
+    printf("Initializing filesystems...")
     local Filesystem = require("Filesystem")
     Filesystem.mount(require("Component").eeprom.getData(), "/")
     Filesystem.mount(require("Computer").tmpAddress(), "/Temp/")

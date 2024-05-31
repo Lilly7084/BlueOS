@@ -1,6 +1,10 @@
-local Package = {}
 local loaded = {}  -- Cache of already-loaded DLLs
 local loading = {}  -- Lists DLLs in flight to detect circular dependencies
+
+local ELOADFAIL = "Package '%s' %s: %s" -- Failure in loadLib()
+local ELOADING = "Package '%s' already loading: circular dependency?" -- Circular dependency detected
+
+local Package = {}
 --------------------------------------------------------------------------------
 
 -- Resolve the absolute path of a library's main file from a name
@@ -13,44 +17,44 @@ end
 -- Load in a library, not respecting the caches
 local loadLib = function (name, ...)
     local step, result, reason = "not loaded", name, nil
-    if result then --find
+    if result then
         step, result, reason = "not found", Package.find(result)
     end
-    if result then --load
+    if result then
         step, result, reason = "load failed", loadfile(result)
     end
-    if result then --init
+    if result then
         step, result, reason = "init failed", bpcall(result, ...)
     end
     -- If we failed at any point, compose the error message
     if not result then
         reason = tostring(reason) or "unknown error"
-        return nil, "Package '"..name.."' "..step..": "..reason
+        return nil, string.format(ELOADFAIL, name, step, reason)
     end
     return result
 end
 
 -- Load in a library, respecting the cache and catching circular dependencies
 Package.require = function (name, ...)
-    if Package.loaded[name] then  -- Already loaded
-        return Package.loaded[name]
-    elseif Package.loading[name] then  -- Circular dependency
-        error("Package '"..name.."' already loading: circular dependency?")
+    if loaded[name] then  -- Already loaded
+        return loaded[name]
+    elseif loading[name] then  -- Circular dependency
+        error(string.format(ELOADING, name))
     else  -- Not yet loaded
-        Package.loading[name] = true
+        loading[name] = true
         local result, reason = loadLib(name, ...)
         if not result then
             error(reason)
         end
-        Package.loaded[name] = result  -- Add to the cache
-        Package.loading[name] = nil  -- Consumes less memory than 'false'
+        loaded[name] = result  -- Add to the cache
+        loading[name] = nil  -- Consumes less memory than 'false'
         return result
     end
 end
 
 -- Hook a 'delay file' to a library; the first time that any function not
 -- already defined in the library is called, the delay file is executed and
--- *should* register the missing functions
+-- *should* (but still might not) register the missing functions
 Package.delay = function (lib, path)
     checkArg(1, lib, "table")
     checkArg(2, path, "string")
@@ -64,7 +68,10 @@ Package.delay = function (lib, path)
 end
 
 --------------------------------------------------------------------------------
-Package.loaded = loaded
-Package.loading = loading
+Package.internal = {
+    loaded = loaded,
+    loading = loading
+}
 _G.require = Package.require
+
 return Package

@@ -1,7 +1,16 @@
-local Filesystem = {}
+local Component = require("Component")
+
+local ENOPROXY = "No such volume" -- Component does not exist
+local EBADPROXY = "Not a volume" -- Provided proxy with wrong ctype
+local EMOUNTED = "Volume already mounted" -- Attempt to mount a proxy a second time
+local EEXISTS = "Item already exists" -- Attempt to create existing item
+local ENOENT = "Item not found" -- Attempt to access a non-existent item
+local EISDIR = "Is a directory" -- Attempted file-only operation on a directory
+local EBADMODE = "Invalid access mode" -- Provided file access mode which is not supported
+
 local mounts = {}
 
-local Component = require("Component")
+local Filesystem = {}
 --------------------------------------------------------------------------------
 -- Path string manipulation
 
@@ -88,7 +97,7 @@ Filesystem.proxy = function (volume)
         end
     end
     -- We failed
-    return nil, "No such volume"
+    return nil, ENOPROXY
 end
 
 -- Mount a volume (specified by proxy, address, or label) at a specific path
@@ -99,16 +108,16 @@ Filesystem.mount = function (volume, path)
     if type(volume) == "string" then
         volume = Filesystem.proxy(volume)
     elseif volume.type ~= "filesystem" then
-        return nil, "Incorrect proxy type"
+        return nil, EBADPROXY
     end
     -- Make sure the proxy and mount point aren't already in use
     for _, mount in ipairs(mounts) do
         if mount.proxy.address == volume.address then
-            return nil, "Volume already mounted"
+            return nil, EMOUNTED
         end
         -- TODO: Let an existing folder prevent a mount?
         if mount.path == path then
-            return nil, "Item already exists"
+            return nil, EEXISTS
         end
     end
     -- Now actually do the mount
@@ -132,7 +141,7 @@ Filesystem.unmount = function (volume)
         -- That failed, so the string must be an address or label
         volume = Filesystem.proxy(volume)
     elseif volume.type ~= "filesystem" then
-        return nil, "Incorrect proxy type"
+        return nil, EBADPROXY
     end
     -- Now unmount based on proxy
     for id, mount in ipairs(mounts) do
@@ -142,7 +151,7 @@ Filesystem.unmount = function (volume)
         end
     end
     -- We failed
-    return nil, "No such volume"
+    return nil, ENOPROXY
 end
 
 -- Get the volume proxy and volume-relative path for a given absolute path
@@ -155,7 +164,7 @@ Filesystem.get = function (path)
         end
     end
     -- We failed
-    return nil, "Path not found"
+    return nil, ENOENT
 end
 
 --------------------------------------------------------------------------------
@@ -236,11 +245,8 @@ Filesystem.rename = function (oldPath, newPath)
     local newProxy, newProxyPath = Filesystem.get(newPath)
     if not newProxy then return nil, newProxyPath end
     -- Bail out now in case of anything that would stop us later
-    if oldProxy.isDirectory(oldProxyPath) then
-        return nil, "Is a directory"
-    end
     if newProxy.exists(newProxyPath) then
-        return nil, "Item already exists"
+        return nil, EEXISTS
     end
     -- If the volumes are different, copy then delete the original
     if oldProxy.address ~= newProxy.address then
@@ -253,6 +259,7 @@ end
 
 -- Copies a file from one location to another.
 Filesystem.copy = function (fromPath, toPath)
+    -- TODO: Bail out if a directory path is provided
     local from = Filesystem.open(fromPath, "r")
     local to = Filesystem.open(toPath, "w")
     local chunk, reason
@@ -356,11 +363,14 @@ Filesystem.open = function (path, mode)
     else
         -- Invalid
         file:close() -- Clean up
-        return nil, "Invalid access mode"
+        return nil, EBADMODE
     end
     return file
 end
 
 --------------------------------------------------------------------------------
-Filesystem.mounts = mounts
+Filesystem.internal = {
+    mounts = mounts
+}
+
 return Filesystem

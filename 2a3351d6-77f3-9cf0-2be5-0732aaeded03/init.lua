@@ -1,5 +1,7 @@
--- Run /System/Startup.lua in its own scope to delete unneeded vars afterwards
 do
+    -- Some limitations have been imposed on the project; enforce them here
+    component.proxy = nil  -- We can't use that, remember?
+    -- Bootstrap implementation of loadfile
     local invoke = component.invoke
     local eeprom = component.list("eeprom")() or error("Missing EEPROM")
     local hdd = invoke(eeprom, "getData") or error("Missing boot filesystem")
@@ -16,6 +18,7 @@ do
         invoke(hdd, "close", handle)
         return load(buffer, "=" .. path, "t", _G)
     end
+    -- Call /System/Startup.lua, which contains the actual startup process
     loadfile("/System/Startup.lua")(loadfile)
 end
 

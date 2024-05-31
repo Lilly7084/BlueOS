@@ -1,9 +1,13 @@
-local Component = _G.component
+local Event = require("Event")
+
+local ENOENT = "No such component" -- Component does not exist
+local EREADONLY = "Field is read only" -- Attempted to write to read-only field
+
 -- __mode='v' : Make this a weak table so proxies used by nothing get unloaded
 local proxies = setmetatable({}, { __mode = 'v' })
 local primaries = {}
 
-local Event = require("Event")
+local Component = _G.component
 --------------------------------------------------------------------------------
 
 -- Resolve an abbreviated address to a full address
@@ -16,7 +20,7 @@ Component.get = function (addr, ctype)
             return thatAddr
         end
     end
-    return nil, "No such component"
+    return nil, ENOENT
 end
 
 --------------------------------------------------------------------------------
@@ -47,7 +51,7 @@ local mt_proxy = {
         if self.fields[key] and self.fields[key].setter then
             return Component.invoke(self.address, key, value)
         elseif self.fields[key] and self.fields[key].getter then
-            error("Field is read-only")
+            error(EREADONLY)
         else
             rawset(self, key, value)
         end
@@ -127,7 +131,7 @@ Component.getPrimary = function (ctype)
     checkArg(1, ctype, "string")
     local proxy = primaries[ctype]
     if not proxy then
-        return nil, "No such component"
+        return nil, ENOENT
     end
     return proxy
 end
@@ -143,7 +147,7 @@ Component.setPrimary = function (ctype, addr)
             Event.push("component_available", ctype)
             return true
         end
-        return nil, "Component already available"
+        return false
     else
         -- Unbind
         if Component.isAvailable(ctype) then
@@ -151,7 +155,7 @@ Component.setPrimary = function (ctype, addr)
             Event.push("component_unavailable", ctype)
             return true
         end
-        return nil, "No such component"
+        return nil, ENOENT
     end
 end
 
@@ -183,6 +187,9 @@ for addr, ctype in Component.list() do
 end
 
 --------------------------------------------------------------------------------
-Component.proxies = proxies
-Component.primaries = primaries
+Component.internal = {
+    proxies = proxies,
+    primaries = primaries
+}
+
 return Component

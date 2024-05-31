@@ -1,9 +1,13 @@
-local Event = {}
-local handlers = {}
+local ENOENT = "No such handler" -- Tried to cancel a handler which did not exist
+local EHANDLE = "Event handler error: %s" -- Error occurred in event handler callback
 
 local _cUptime = computer.uptime
 local _cPullSignal = computer.pullSignal
 local _infinity = math.maxinteger or math.huge
+
+local handlers = {}
+
+local Event = {}
 --------------------------------------------------------------------------------
 -- Bare bones interface for managing handlers
 
@@ -32,7 +36,7 @@ Event.cancel = function (id)
         handlers[id] = nil
         return true
     end
-    return nil, "No such handler"
+    return nil, ENOENT
 end
 
 --------------------------------------------------------------------------------
@@ -70,7 +74,7 @@ local dispatchSignal = function (signal)
             local response, reason = bpcall(handler.callback, table.unpack(signal, 1, signal.n))
             if not response and reason then
                 -- TODO: Properly report and/or log errors which occur in event handlers
-                print("Event error: " .. tostring(reason))
+                print(string.format(EHANDLE, reason))
             end
             -- A response of false (NOT nil) means the handler should be destroyed
             if response == false and handlers[id] == handler then
@@ -122,7 +126,7 @@ Event.ignore = function (key, callback)
             return true
         end
     end
-    return nil, "No such handler"
+    return nil, ENOENT
 end
 
 -- Register a timer
@@ -235,6 +239,9 @@ Event.flush = function (timeout)
 end
 
 --------------------------------------------------------------------------------
-Event.handlers = handlers
+Event.internal = {
+    handlers = handlers
+}
 computer.pullSignal = hookedPull
+
 return Event
